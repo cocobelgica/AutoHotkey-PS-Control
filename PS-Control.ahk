@@ -1,25 +1,27 @@
+#SingleInstance, force
 return
 
 class PS
 {
 
+	; Set settings here
 	static __settings := {caption:false
 	                    , trans:-20
 	                    , alwaysontop:false}
 	
 	; Set Hotkeys here
 	static __Hotkeys := {quake:"#``"
-	                   , caption:"^]"
-	                   , trans_min:"["
-	                   , trans_add:"]"
+	                   , caption:""
+	                   , trans_min:""
+	                   , trans_add:""
 	                   , exit:"Esc"}
 	
-	static __ := PS.__INIT__()
-	static __wClass := "ConsoleWindowClass"
+	static _ := PS.__INIT__()
 
 	__INIT__() {
-		static init
+		static init , _ := ObjRemove(PS, "_")
 
+		ObjInsert(this, "__", [])
 		Menu, Tray, Icon, powershell.exe, 1
 		
 		if !init
@@ -35,10 +37,19 @@ class PS
 		for a, b in this.__settings
 			this[a] := b
 
-		for k, v in this.__Hotkeys
+		for k, v in this.__Hotkeys {
+			if (v == "")
+				continue
+			if (k <> "quake")
+				HotKey, IfWinActive, % "ahk_id " this.__hwnd
 			Hotkey, % v, PS_Hotkey
+			Hotkey, IfWinActive
+		}
 
-		return []
+	}
+
+	__showASync(nCmdShow:=5) { ; SW_SHOW:=5 , SW_HIDE:=0
+		DllCall("ShowWindowAsync", "Ptr", PS.__hwnd, "Int", nCmdShow)
 	}
 
 	__activate() {
@@ -59,24 +70,40 @@ class PS
 	__quake() {
 		static d := 512
 		
-		if ((a:=WinExist("A")) == this.__hwnd) {
+		if (WinExist("A") == this.__hwnd) {
 			WinGet, list, List,,, Program Manager
 			Loop, % list
 				n := (list%A_Index% = this.__hwnd ? A_Index+1 : false)
 			until n
 			a := list%n%
-		} else PS.__activate()
-
-		if this.isHidden {
-			while ((y:=this.pos.Y) < 0)
-				this.__move("", y+d)
 		} else {
+			if this.isHidden
+				WinShow, % "ahk_id " this.__hwnd
+			this.__activate() , na := true
+		}
+
+		if this.isVisible {
+			if na
+				return
 			s := (0-this.pos.H)
 			while !((y:=this.pos.Y) <= s)
 				this.__move("", y-d)
-
+			
+			WinHide, % "ahk_id " this.__hwnd
 			WinActivate, % "ahk_id " a
+		
+		} else while ((y:=this.pos.Y) < 0) {
+			this.__move("", y+d)
 		}
+		
+		return
+
+		PS_WaitNotActive:
+		WinWaitNotActive, % "ahk_id " PS.__hwnd
+		if !PS.isVisible
+			PS.__quake()
+		return
+
 	}
 
 	__write(text) {
@@ -104,6 +131,11 @@ class PS
 				      , % {0:"Off", 1:"On", 2:"Toggle"}[v]
 				      , % "ahk_id " this.__hwnd
 
+			if (k = "toolwindow")
+				WinSet, ExStyle
+				      , % {0:"-", 1:"+", 2:"^"}[v] . 0x80
+				      , % "ahk_id " this.__hwnd
+
 			DetectHiddenWindows, % dhw
 			return this.__[k] := v
 		}
@@ -113,7 +145,12 @@ class PS
 			DetectHiddenWindows, On
 
 			if (key = "__hwnd") {
-				val := WinExist("ahk_class ConsoleWindowClass")
+				;val := WinExist("ahk_class ConsoleWindowClass")
+				val := WinExist("ahk_exe powershell.exe")
+			}
+
+			if (key = "wClass") {
+				val := "ConsoleWindowClass"
 			}
 
 			if (key = "__pid") {
@@ -131,8 +168,14 @@ class PS
 					val := 255
 			}
 
+			if (key = "isVisible") {
+				;val := (this.pos.Y < 0)
+				val := (this.pos.Y >= 0)
+			}
+
 			if (key = "isHidden") {
-				return (this.pos.Y < 0)
+				DetectHiddenWindows, Off
+				val := !WinExist("ahk_id " this.__hwnd)
 			}
 
 			DetectHiddenWindows, % dhw
@@ -157,7 +200,7 @@ class PS
 		return
 	}
 
-	__EXIT__() {
+	__EXIT__(p*) {
 		; reset to normal
 		for k, v in {caption:1, trans:Abs(PS.__settings.trans), alwaysontop:0}
 			this[k] := v
