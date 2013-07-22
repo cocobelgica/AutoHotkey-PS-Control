@@ -1,4 +1,5 @@
 #SingleInstance, force
+SetWinDelay, -1
 return
 
 class PS
@@ -68,7 +69,7 @@ class PS
 	}
 
 	__quake() {
-		static d := 512
+		static d := 64
 		
 		if (WinExist("A") == this.__hwnd) {
 			WinGet, list, List,,, Program Manager
@@ -86,7 +87,7 @@ class PS
 			if na
 				return
 			s := (0-this.pos.H)
-			while !((y:=this.pos.Y) <= s)
+			while ((y:=this.pos.Y) > s)
 				this.__move("", y-d)
 			
 			WinHide, % "ahk_id " this.__hwnd
