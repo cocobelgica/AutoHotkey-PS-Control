@@ -167,7 +167,7 @@ class PS
 			if (key = "__hwnd") {
 				val := this.__.HasKey("__hwnd")
 				    ? this.__.__hwnd
-				    : (this.__hwnd:=WinExist("ahk_exe powershell.exe"))
+				    : (this.__hwnd:=WinExist("ahk_class ConsoleWindowClass"))
 				/*
 				if !WinExist("ahk_id " val) ;!DllCall("IsWindow", "Ptr", val)
 					throw Exception("ERROR: PowerShell handle does not exist", -1)
@@ -195,12 +195,26 @@ class PS
 				val := (ExStyle & 0x8) ? true : false ; WS_EX_TOPMOST:=0x8
 
 			} else if (key = "shortcut") {
+				; Fix this part
 				val := A_ProgramsCommon . "\
 				(LTrim Join\
 				Accessories
 				Windows PowerShell
 				Windows PowerShell.lnk
 				)"
+				. "`n" A_ProgramsCommon . "\
+				(LTrim Join\
+				Accessories
+				Command Prompt.lnk
+				)"
+				. "`n" A_Programs . "\
+				(LTrim Join\
+				Accessories
+				Command Prompt.lnk
+				)"
+				os := {7:1, 8:1, VISTA:2, XP:3}[SubStr(A_OSVersion, 5)]
+				if !RegExMatch(val, "(?:(?:\R|)\K[^\r\n]+){" os "}", val)
+					val := "cmd.exe"
 			
 			} else if (key = "wClass") {
 				val := "ConsoleWindowClass"
@@ -212,10 +226,11 @@ class PS
 	}
 
 	__LOADCONFIG__() {
-		x := ComObjCreate("MSXML2.DOMDocument.6.0")
+		x := ComObjCreate("MSXML2.DOMDocument" . (A_OSVersion~="(VISTA|7|8)" ? ".6.0" : ""))
+		x.setProperty("SelectionLanguage", "XPath") , x.async := false
 		_ := {UI:[], HOTKEYS:[]}
 		
-		cfg =
+		cfg := "
 		(LTrim Join
 		<PS>
 		<UI>
@@ -228,26 +243,26 @@ class PS
 		<exit>Esc</exit>
 		</HOTKEYS>
 		<MENUS>
-		<Menu name="Tray" icon="powershell.exe,1,1" default="Exit PS-Control" standard="0">
-		<Item name="Show Titlebar" action="PS_MenuLabel"/>
-		<Item name="Transparency" action=":Trans"/>
-		<Item name="Always On Top" action="PS_MenuLabel"/>
+		<Menu name=""Tray"" icon=""powershell.exe,1,1"" default=""Exit PS-Control"" standard=""0"">
+		<Item name=""Show Titlebar"" action=""PS_MenuLabel""/>
+		<Item name=""Transparency"" action="":Trans""/>
+		<Item name=""Always On Top"" action=""PS_MenuLabel""/>
 		<Item/>
-		<Item name="Exit PS-Control" action="PS_MenuLabel"/>
+		<Item name=""Exit PS-Control"" action=""PS_MenuLabel""/>
 		</Menu>
-		<Menu name="Trans">
-		<Item name="Default" action="PS_MenuLabel" check="1"/>
+		<Menu name=""Trans"">
+		<Item name=""Default"" action=""PS_MenuLabel"" check=""1""/>
 		<Item/>
-		<Item name="None" action="PS_MenuLabel"/>
-		<Item name="90" action="PS_MenuLabel"/>
-		<Item name="80" action="PS_MenuLabel"/>
-		<Item name="70" action="PS_MenuLabel"/>
-		<Item name="60" action="PS_MenuLabel"/>
-		<Item name="50" action="PS_MenuLabel"/>
+		<Item name=""None"" action=""PS_MenuLabel""/>
+		<Item name=""90"" action=""PS_MenuLabel""/>
+		<Item name=""80"" action=""PS_MenuLabel""/>
+		<Item name=""70"" action=""PS_MenuLabel""/>
+		<Item name=""60"" action=""PS_MenuLabel""/>
+		<Item name=""50"" action=""PS_MenuLabel""/>
 		</Menu>
 		</MENUS>
 		</PS>
-		)
+		)"
 		x.loadXML(cfg)
 		
 		for k, v in _
@@ -344,7 +359,8 @@ MENU_load(src) {
 		    ,   "@*[translate(name(), 'ACTION', 'action')='action']"
 		    ,   "@*[translate(name(), 'RELOAD', 'reload')='reload']"]
 	
-	x := ComObjCreate("MSXML2.DOMDocument.6.0")
+	x := ComObjCreate("MSXML2.DOMDocument" . (A_OSVersion~="(VISTA|7|8)" ? ".6.0" : ""))
+	x.setProperty("SelectionLanguage", "XPath") ;for OS'es below Win_7
 	x.async := false
 
 	;Load XML source
